@@ -1,0 +1,23 @@
+# Node
+node_modules/
+out/
+dist/
+spike/*.local.*
+
+# MacOS
+**/.DS_Store
+
+# IDE
+.vscode/
+.specstory/
+.senera/
+
+# CodingAgent
+.claude/
+.codex/
+.cursor/
+
+# Cursor
+.cursorurles
+.cursorignore
+.cursorindexingignore
