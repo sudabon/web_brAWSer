@@ -1,0 +1,42 @@
+appId: com.sudabon.web-brawser
+productName: WEBbrAWSer
+copyright: Copyright © sudabon
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+asarUnpack:
+  - node_modules/zxing-wasm/**
+extraResources:
+  - from: docs
+    to: docs
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  identity: "-"
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  notarize: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+  extendInfo:
+    NSScreenCaptureUsageDescription: TOTP の QR を画面から読み取るために画面収録を使います。
+protocols:
+  - name: AWS Console
+    schemes:
+      - aws-console
+publish:
+  provider: github
+  owner: sudabon
+  repo: web_brAWSer
+npmRebuild: false
