@@ -402,6 +402,16 @@ body,
   background: var(--active);
 }
 
+.tab-account {
+  flex-shrink: 0;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--muted);
+}
+
 .tab-title {
   display: block;
   overflow: hidden;
