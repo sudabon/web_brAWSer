@@ -97,7 +97,7 @@ describe("SessionManager", () => {
     );
   });
 
-  it("reselects a live session without federating again", async () => {
+  it("opens another console tab for a live session without federating again", async () => {
     const tabs = tabHost();
     const getRoleCredentials = vi.fn(async () => credentials);
     const fetchImpl = vi.fn<typeof fetch>(
@@ -118,7 +118,10 @@ describe("SessionManager", () => {
 
     expect(getRoleCredentials).toHaveBeenCalledOnce();
     expect(tabs.focused).toEqual(["111#Admin", "111#Admin"]);
-    expect(tabs.opened).toHaveLength(1);
+    expect(tabs.opened).toHaveLength(2);
+    expect(tabs.opened[1]?.url).toBe(
+      "https://ap-northeast-1.console.aws.amazon.com/console/home?region=ap-northeast-1",
+    );
   });
 
   it("silently re-federates an expired tab back to its current URL", async () => {

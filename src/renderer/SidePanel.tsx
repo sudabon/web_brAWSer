@@ -100,9 +100,13 @@ function groupAccounts(accounts: AccountRoleView[]): {
 function TabListItem({
   tab,
   prodWarning,
+  accountName,
+  accountColor,
 }: {
   tab: TabSnapshot;
   prodWarning: boolean;
+  accountName?: string;
+  accountColor?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tab.title);
@@ -146,11 +150,15 @@ function TabListItem({
   }
 
   const titleClass = tab.hibernated ? "tab-title hibernated" : "tab-title";
+  const colorDot = accountColor ? (
+    <span className="color-dot filled" style={{ background: accountColor }} />
+  ) : null;
 
   return (
     <li>
       {editing ? (
         <div className={tab.active ? "tab-item active" : "tab-item"}>
+          {colorDot}
           {tab.favicon ? (
             <img className="tab-favicon" src={tab.favicon} alt="" />
           ) : (
@@ -182,8 +190,9 @@ function TabListItem({
             event.preventDefault();
             startRename();
           }}
-          title={`${tab.title}\n${tab.url}\nダブルクリックで名前を変更`}
+          title={`${accountName ? `${accountName}\n` : ""}${tab.title}\n${tab.url}\nダブルクリックで名前を変更`}
         >
+          {colorDot}
           {tab.favicon ? (
             <img className="tab-favicon" src={tab.favicon} alt="" />
           ) : (
@@ -194,6 +203,7 @@ function TabListItem({
               ⚠
             </span>
           ) : null}
+          {accountName ? <span className="tab-account">{accountName}</span> : null}
           <span className={titleClass}>{tab.title || tab.url}</span>
         </button>
       )}
@@ -284,9 +294,6 @@ export function SidePanel() {
   const groups = useMemo(() => groupAccounts(directory.accounts), [directory.accounts]);
   const selectedKey = directory.selectedAccountRoleKey;
   const selectedAccount = directory.accounts.find((account) => account.accountRoleKey === selectedKey);
-  const visibleTabs = selectedKey
-    ? tabs.filter((tab) => tab.accountRoleKey === selectedKey)
-    : [];
 
   async function onConfigureSso(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -485,17 +492,23 @@ export function SidePanel() {
           }}
         />
         <ul className="tab-list">
-          {!selectedKey ? (
-            <li className="placeholder">アカウントを選択するとタブが表示されます。</li>
-          ) : visibleTabs.length === 0 ? (
-            <li className="placeholder">このアカウントのタブはまだありません。</li>
+          {tabs.length === 0 ? (
+            <li className="placeholder">タブはまだありません。</li>
           ) : (
-            visibleTabs.map((tab) => {
+            tabs.map((tab) => {
               const account = directory.accounts.find(
                 (item) => item.accountRoleKey === tab.accountRoleKey,
               );
               const prodWarning = account?.tags.includes("prod") ?? false;
-              return <TabListItem key={tab.id} tab={tab} prodWarning={prodWarning} />;
+              return (
+                <TabListItem
+                  key={tab.id}
+                  tab={tab}
+                  prodWarning={prodWarning}
+                  accountName={account?.accountName}
+                  accountColor={account?.color}
+                />
+              );
             })
           )}
         </ul>

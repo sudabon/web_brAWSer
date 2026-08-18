@@ -98,14 +98,11 @@ export class SessionManager {
   }
 
   async connect(accountRoleKey: string): Promise<void> {
-    this.#selected = accountRoleKey;
-    const existing = this.#sessions.get(accountRoleKey);
-    if (existing && this.#isLive(existing)) {
-      this.options.tabs.focusAccount(accountRoleKey);
-      this.options.onChange?.();
-      return;
-    }
-    await this.#federate(accountRoleKey);
+    const { accountId } = parseAccountRoleKey(accountRoleKey);
+    await this.openUrl(
+      accountRoleKey,
+      defaultDestination(this.options.defaultRegionFor(accountId)),
+    );
   }
 
   async openUrl(accountRoleKey: string, url: string): Promise<void> {
