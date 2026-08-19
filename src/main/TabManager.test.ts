@@ -227,7 +227,7 @@ describe("TabManager custom titles", () => {
     const { tabs, created } = createManager();
     const id = tabs.openTab({
       accountRoleKey: "111#Admin",
-      url: "https://ap-northeast-1.console.aws.amazon.com/s3/home",
+      url: "https://ap-northeast-1.console.aws.amazon.com/not-a-service/home",
     });
     tabs.renameTab(id, "prod billing");
     tabs.renameTab(id, "   ");
@@ -241,7 +241,7 @@ describe("TabManager custom titles", () => {
     expect(tabs.snapshots()[0]?.title).toBe("my s3");
   });
 
-  it("uses the account name as the default tab title", () => {
+  it("uses the account name and the open service as the default tab title", () => {
     const { tabs } = createManager({
       getAccountName: () => "Enjin",
     });
@@ -249,10 +249,10 @@ describe("TabManager custom titles", () => {
       accountRoleKey: "111#Admin",
       url: "https://ap-northeast-1.console.aws.amazon.com/s3/home",
     });
-    expect(tabs.snapshots()[0]?.title).toBe("Enjin");
+    expect(tabs.snapshots()[0]?.title).toBe("Enjin／S3");
   });
 
-  it("keeps the account name when the console page title updates", () => {
+  it("keeps the default title when the console page title updates", () => {
     const { tabs, created } = createManager({
       getAccountName: () => "Enjin",
     });
@@ -261,10 +261,10 @@ describe("TabManager custom titles", () => {
       url: "https://ap-northeast-1.console.aws.amazon.com/s3/home",
     });
     emitPageTitle(created[0]!, "AWS Management Console");
-    expect(tabs.snapshots()[0]?.title).toBe("Enjin");
+    expect(tabs.snapshots()[0]?.title).toBe("Enjin／S3");
   });
 
-  it("falls back to the account name after a custom title is cleared", () => {
+  it("falls back to the default title after a custom title is cleared", () => {
     const { tabs, created } = createManager({
       getAccountName: () => "Enjin",
     });
@@ -275,6 +275,59 @@ describe("TabManager custom titles", () => {
     tabs.renameTab(id, "billing");
     tabs.renameTab(id, "");
     emitPageTitle(created[0]!, "Amazon S3");
+    expect(tabs.snapshots()[0]?.title).toBe("Enjin／S3");
+  });
+});
+
+function emitNavigate(view: TabViewHandle, url: string, event = "did-navigate"): void {
+  const listener = vi
+    .mocked(view.webContents.on)
+    .mock.calls.find(([name]) => name === event)?.[1] as
+    | ((event: unknown, url: string) => void)
+    | undefined;
+  listener?.({}, url);
+}
+
+describe("TabManager service titles", () => {
+  it("names the service the tab currently shows", () => {
+    const { tabs } = createManager({ getAccountName: () => "Enjin" });
+    tabs.openTab({
+      accountRoleKey: "111#Admin",
+      url: "https://ap-northeast-1.console.aws.amazon.com/lambda/home#/functions/order-worker",
+    });
+    expect(tabs.snapshots()[0]?.title).toBe("Enjin／Lambda");
+  });
+
+  it("follows in-page navigation to another service", () => {
+    const { tabs, created } = createManager({ getAccountName: () => "Enjin" });
+    tabs.openTab({
+      accountRoleKey: "111#Admin",
+      url: "https://ap-northeast-1.console.aws.amazon.com/s3/home",
+    });
+    emitNavigate(
+      created[0]!,
+      "https://ap-northeast-1.console.aws.amazon.com/cloudwatch/home#logsV2:log-groups",
+      "did-navigate-in-page",
+    );
+    expect(tabs.snapshots()[0]?.title).toBe("Enjin／CloudWatch Logs");
+  });
+
+  it("shows the account name alone outside the console", () => {
+    const { tabs, created } = createManager({ getAccountName: () => "Enjin" });
+    tabs.openTab({
+      accountRoleKey: "111#Admin",
+      url: "https://ap-northeast-1.console.aws.amazon.com/s3/home",
+    });
+    emitNavigate(created[0]!, "https://health.aws.amazon.com/health/home");
     expect(tabs.snapshots()[0]?.title).toBe("Enjin");
+  });
+
+  it("names the service even when the account name is unknown", () => {
+    const { tabs } = createManager();
+    tabs.openTab({
+      accountRoleKey: "111#Admin",
+      url: "https://ap-northeast-1.console.aws.amazon.com/rds/home",
+    });
+    expect(tabs.snapshots()[0]?.title).toBe("RDS");
   });
 });

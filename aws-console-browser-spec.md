@@ -39,13 +39,14 @@ AWSマネジメントコンソール**専用**のデスクトップアプリ。I
 - アカウント×ロールを**サイドバーの一覧**として扱い、タブの本数と切り離す
 - アカウントごとに完全に独立したCookieジャーを持つ
 - TOTPをアプリに内蔵する
+- Identity Center のサインイン ID/パスワードをアプリに内蔵する（TOTP と同居するリスクを受け入れたうえで、§6.3 の条件下で保管する）
 - アカウントごとの色分けで、prod誤操作を物理的に見えるようにする
 
 ### 1.3 非目標（明示的に作らない）
 
 - 汎用ブラウザ機能（任意サイトの閲覧、ブックマーク同期、拡張機能）
 - Google Cloud など AWS 以外のコンソール対応
-- パスワードマネージャ機能（TOTPのみ扱い、パスワードは扱わない）
+- 汎用のパスワードマネージャ機能（Identity Center のサインイン情報のみ扱い、AWS 以外のサイトの資格情報は扱わない）
 - モバイル対応、Windows / Linux 対応（将来検討）
 - 「軽量化」そのもの — AWSコンソールは重量級SPAであり、UIを削っても消費メモリはほぼ変わらない。得られるのは起動速度とワークフローの摩擦低減であって、軽さではない
 
@@ -419,8 +420,11 @@ new WebContentsView({
 
 1. アカウント色バーの注入
 2. Identity Center サインインページでのMFA入力ボタン表示
+3. Identity Center サインインページでのID/パスワード入力ボタン表示
 
-`contextBridge.exposeInMainWorld` で公開するAPIは、上記2つに必要な最小のIPCチャネルのみ。
+`contextBridge.exposeInMainWorld` で公開するAPIは、上記に必要な最小のIPCチャネルのみ。
+ただし **ID/パスワードは contextBridge に出さない**。ページ側の JS から読めてしまうため、
+preload 内のボタンだけが `credentials:fill` を叩き、復号値は preload の外へ出ない。
 
 ### 6.3 認証情報の取扱い
 
@@ -430,6 +434,10 @@ new WebContentsView({
 | SigninToken | メモリ、使用後即破棄 | 15分・ワンショット |
 | SSO accessToken | `sso.enc`（safeStorage） | |
 | TOTPシード | `totp.enc`（safeStorage） | + Touch IDゲート |
+| Identity Center の ID/パスワード | `creds.enc`（safeStorage） | + Touch IDゲート。レンダラにはユーザー名のみ返し、パスワードはサインイン画面の preload にのみ渡す |
+
+**ID/パスワードと TOTP を同居させた時点で、MFA は防御として機能しない。** ルートアカウントおよび
+ブレークグラス用の資格情報は登録しない。自動入力はサインインボタンの押下までで、送信は自動化しない。
 
 ### 6.4 その他
 

@@ -132,6 +132,29 @@ export type TotpSnapshot = {
   errorMessage?: string;
 };
 
+/** レンダラへ渡すサインイン情報。パスワードは決して含めない。 */
+export type SigninCredentialView = {
+  id: string;
+  label: string;
+  username: string;
+};
+
+export type SigninCredentialSnapshot = {
+  locked: boolean;
+  encryptionAvailable: boolean;
+  touchIdAvailable: boolean;
+  count: number;
+  credentials: SigninCredentialView[];
+  errorMessage?: string;
+};
+
+/** 登録フォームからメインプロセスへ渡す入力。メインより外へは戻らない。 */
+export type SigninCredentialSave = {
+  label: string;
+  username: string;
+  password: string;
+};
+
 export type TotpManualImport = {
   issuer: string;
   label: string;
@@ -169,6 +192,12 @@ export const IPC = {
   totpChanged: "totp:changed",
   totpTogglePanel: "totp:toggle-panel",
   totpCurrentCode: "totp:current-code",
+  credentialsGet: "credentials:get",
+  credentialsUnlock: "credentials:unlock",
+  credentialsSave: "credentials:save",
+  credentialsRemove: "credentials:remove",
+  credentialsChanged: "credentials:changed",
+  credentialsFill: "credentials:fill",
   commandPaletteOpen: "command:open",
   commandJump: "command:jump",
   findOpen: "find:open",
