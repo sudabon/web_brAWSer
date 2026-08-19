@@ -52,6 +52,19 @@ declare global {
         ) => () => void;
         onTogglePanel: (callback: () => void) => () => void;
       };
+      credentials: {
+        get: () => Promise<import("../shared/types").SigninCredentialSnapshot>;
+        unlock: () => Promise<boolean>;
+        save: (
+          input: import("../shared/types").SigninCredentialSave,
+        ) => Promise<void>;
+        remove: (id: string) => Promise<void>;
+        onChanged: (
+          callback: (
+            snapshot: import("../shared/types").SigninCredentialSnapshot,
+          ) => void,
+        ) => () => void;
+      };
       urlHandoff: {
         takePending: () => Promise<string | undefined>;
         cancelPending: () => Promise<void>;

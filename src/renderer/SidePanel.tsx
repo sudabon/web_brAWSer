@@ -22,6 +22,7 @@ import { AccountPalette } from "./AccountPalette";
 import { CommandPalette } from "./CommandPalette";
 import { FindBar } from "./FindBar";
 import { RegionPicker } from "./RegionPicker";
+import { SigninPanel } from "./SigninPanel";
 import { TotpPanel } from "./TotpPanel";
 
 const emptyDirectory: DirectorySnapshot = {
@@ -511,6 +512,8 @@ export function SidePanel() {
       </section>
 
       <TotpPanel />
+
+      <SigninPanel />
 
       <div
         className="resize-handle"

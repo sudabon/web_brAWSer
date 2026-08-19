@@ -134,6 +134,59 @@ body,
   color: var(--danger);
 }
 
+.signin-section {
+  flex: 0 1 auto;
+  overflow: auto;
+}
+
+.signin-warning {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--warn);
+}
+
+.signin-error {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--danger);
+}
+
+.signin-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.signin-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.signin-entry {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.signin-username {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signin-label,
+.signin-password {
+  font-size: 10px;
+  color: var(--muted);
+}
+
 .totp-list {
   list-style: none;
   margin: 0 0 10px;
@@ -478,6 +531,7 @@ body,
 }
 
 .text-button,
+.signin-form button,
 .sso-form button {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -494,12 +548,14 @@ body,
   cursor: default;
 }
 
+.signin-form,
 .sso-form,
 .sso-status {
   display: grid;
   gap: 6px;
 }
 
+.signin-form label,
 .sso-form label,
 .account-settings label {
   display: grid;
@@ -508,6 +564,7 @@ body,
   color: var(--muted);
 }
 
+.signin-form input,
 .sso-form input,
 .account-settings input {
   width: 100%;

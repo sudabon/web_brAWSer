@@ -10,6 +10,7 @@ import {
 } from "../shared/mfaAssist.ts";
 import { startAccountColorBar } from "./account-color-bar.ts";
 import { startMfaAssist } from "./mfa-assist.ts";
+import { startSigninAssist } from "./signin-assist.ts";
 
 const partition = partitionFromArgv(process.argv);
 
@@ -40,3 +41,7 @@ startMfaAssist({
   partition,
   invokeCurrentCode: () => ipcRenderer.invoke(TOTP_CURRENT_CODE_IPC) as Promise<string>,
 });
+
+// 保存済みのサインイン情報は preload 内のボタンからのみ使う。
+// contextBridge には出さない（ページ側の JS から読めてしまうため）。
+startSigninAssist({ partition });
