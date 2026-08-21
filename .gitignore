@@ -3,6 +3,7 @@ node_modules/
 out/
 dist/
 spike/*.local.*
+*.tsbuildinfo
 
 # MacOS
 **/.DS_Store
