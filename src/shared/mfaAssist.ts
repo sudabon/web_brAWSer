@@ -1,5 +1,6 @@
 export const BROWSER_PARTITION_ARG_PREFIX = "--brawser-partition=";
 export const TOTP_CURRENT_CODE_IPC = "totp:current-code";
+export const CREDENTIAL_FILL_IPC = "credentials:fill";
 
 export function partitionFromArgv(argv: readonly string[]): string {
   const found = argv.find((arg) => arg.startsWith(BROWSER_PARTITION_ARG_PREFIX));

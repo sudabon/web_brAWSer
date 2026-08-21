@@ -23,6 +23,7 @@ import { CommandPalette } from "./CommandPalette";
 import { FindBar } from "./FindBar";
 import { ChevronIcon, GearIcon } from "./icons";
 import { RegionPicker } from "./RegionPicker";
+import { SigninPanel } from "./SigninPanel";
 import { TotpPanel } from "./TotpPanel";
 
 const emptyDirectory: DirectorySnapshot = {
@@ -101,12 +102,10 @@ function groupAccounts(accounts: AccountRoleView[]): {
 function TabListItem({
   tab,
   prodWarning,
-  accountName,
   accountColor,
 }: {
   tab: TabSnapshot;
   prodWarning: boolean;
-  accountName?: string;
   accountColor?: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -191,7 +190,7 @@ function TabListItem({
             event.preventDefault();
             startRename();
           }}
-          title={`${accountName ? `${accountName}\n` : ""}${tab.title}\n${tab.url}\nダブルクリックで名前を変更`}
+          title={`${tab.title}\n${tab.url}\nダブルクリックで名前を変更`}
         >
           {colorDot}
           {tab.favicon ? (
@@ -204,7 +203,6 @@ function TabListItem({
               ⚠
             </span>
           ) : null}
-          {accountName ? <span className="tab-account">{accountName}</span> : null}
           <span className={titleClass}>{tab.title || tab.url}</span>
         </button>
       )}
@@ -527,7 +525,6 @@ export function SidePanel() {
                   key={tab.id}
                   tab={tab}
                   prodWarning={prodWarning}
-                  accountName={account?.accountName}
                   accountColor={account?.color}
                 />
               );
@@ -537,6 +534,8 @@ export function SidePanel() {
       </section>
 
       <TotpPanel />
+
+      <SigninPanel />
 
       <div
         className="resize-handle"

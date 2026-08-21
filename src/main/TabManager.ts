@@ -13,6 +13,7 @@ import {
 import { parseAccountRoleKey } from "./accountRole.ts";
 import { partitionFromAccountRoleKey } from "./partition.ts";
 import { FEDERATION_ENDPOINT } from "./FederationService.ts";
+import { consoleServiceLabel } from "../shared/consoleService.ts";
 import type { OpenTabRequest, TabSnapshot } from "../shared/types.ts";
 import {
   isUnsafeTabUrl,
@@ -106,7 +107,7 @@ export class TabManager {
       id: tab.id,
       accountRoleKey: tab.accountRoleKey,
       url: redactFederationUrl(tab.url),
-      title: tab.customTitle ?? this.#accountName(tab.accountRoleKey) ?? tab.title,
+      title: tab.customTitle ?? this.#defaultTitle(tab),
       favicon: tab.favicon,
       hibernated: tab.hibernated,
       active: tab.id === this.#activeId,
@@ -500,6 +501,15 @@ export class TabManager {
 
   #now(): number {
     return this.options.now?.() ?? Date.now();
+  }
+
+  /** 既定のタブ名は「アカウント名／サービス名」。どちらも取れなければページタイトル。 */
+  #defaultTitle(tab: TabRecord): string {
+    const parts = [
+      this.#accountName(tab.accountRoleKey),
+      consoleServiceLabel(tab.url),
+    ].filter((part): part is string => Boolean(part));
+    return parts.length > 0 ? parts.join("／") : tab.title;
   }
 
   #accountName(accountRoleKey: string): string | undefined {

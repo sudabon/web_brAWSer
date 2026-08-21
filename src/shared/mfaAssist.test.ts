@@ -4,6 +4,7 @@ import {
   isSsoPortalPartition,
   partitionFromArgv,
   shouldAssistMfa,
+  CREDENTIAL_FILL_IPC,
   TOTP_CURRENT_CODE_IPC,
 } from "./mfaAssist.ts";
 import { IPC } from "./types.ts";
@@ -52,6 +53,10 @@ describe("mfaAssist guards", () => {
     expect(
       shouldAssistMfa("persist:sso-portal", "https://us-east-1.console.aws.amazon.com/"),
     ).toBe(false);
+  });
+
+  it("keeps the AWS preload credential channel aligned with IPC.credentialsFill", () => {
+    expect(CREDENTIAL_FILL_IPC).toBe(IPC.credentialsFill);
   });
 
   it("keeps the AWS preload TOTP channel aligned with IPC.totpCurrentCode", () => {

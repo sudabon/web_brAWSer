@@ -5,6 +5,8 @@ import {
   type DirectorySnapshot,
   type OpenTabRequest,
   type PanelSnapshot,
+  type SigninCredentialSave,
+  type SigninCredentialSnapshot,
   type SsoConfigureRequest,
   type TabSnapshot,
   type TotpManualImport,
@@ -106,6 +108,22 @@ contextBridge.exposeInMainWorld("brawser", {
       ipcRenderer.on(IPC.totpTogglePanel, listener);
       return () => {
         ipcRenderer.removeListener(IPC.totpTogglePanel, listener);
+      };
+    },
+  },
+  credentials: {
+    get: (): Promise<SigninCredentialSnapshot> => ipcRenderer.invoke(IPC.credentialsGet),
+    unlock: (): Promise<boolean> => ipcRenderer.invoke(IPC.credentialsUnlock),
+    save: (input: SigninCredentialSave): Promise<void> =>
+      ipcRenderer.invoke(IPC.credentialsSave, input),
+    remove: (id: string): Promise<void> => ipcRenderer.invoke(IPC.credentialsRemove, id),
+    onChanged: (callback: (snapshot: SigninCredentialSnapshot) => void): (() => void) => {
+      const listener = (_event: unknown, snapshot: SigninCredentialSnapshot): void => {
+        callback(snapshot);
+      };
+      ipcRenderer.on(IPC.credentialsChanged, listener);
+      return () => {
+        ipcRenderer.removeListener(IPC.credentialsChanged, listener);
       };
     },
   },

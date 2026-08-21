@@ -41,7 +41,8 @@ import {
 } from "./layout.ts";
 import { captureQrFromScreen, decodeQrBuffer } from "./QrCapture.ts";
 import { TabManager } from "./TabManager.ts";
-import { TotpStore } from "./TotpStore.ts";
+import { TotpStore, type UnlockGate } from "./TotpStore.ts";
+import { CredentialStore } from "./CredentialStore.ts";
 import { SsoPortalPresenter } from "./SsoPortalPresenter.ts";
 import { partitionFromAccountRoleKey, SSO_PORTAL_PARTITION } from "./partition.ts";
 import { PersistenceStore } from "./PersistenceStore.ts";
@@ -51,6 +52,7 @@ import {
   type AccountSettingsUpdate,
   type FindResult,
   type OpenTabRequest,
+  type SigninCredentialSave,
   type SsoConfigureRequest,
   type TotpManualImport,
 } from "../shared/types.ts";
@@ -70,6 +72,7 @@ type Shell = {
   controller: AppController;
   portal: SsoPortalPresenter;
   totp: TotpStore;
+  credentials: CredentialStore;
   downloads: DownloadManager;
   remainingTimer?: ReturnType<typeof setInterval>;
 };
@@ -146,6 +149,7 @@ function broadcast(current: Shell): void {
   contents.send(IPC.panelChanged, { ...current.panel });
   contents.send(IPC.directoryChanged, current.controller.snapshot());
   contents.send(IPC.totpChanged, current.totp.view());
+  contents.send(IPC.credentialsChanged, current.credentials.view());
   applyWindowChrome(current);
 }
 
@@ -456,6 +460,18 @@ function registerIpc(current: Shell): void {
     }
     return current.totp.currentCodeForAssist();
   });
+  ipcMain.handle(IPC.credentialsGet, () => current.credentials.view());
+  ipcMain.handle(IPC.credentialsUnlock, () => current.credentials.unlock());
+  ipcMain.handle(IPC.credentialsSave, (_event, input: SigninCredentialSave) => {
+    return current.credentials.save(input);
+  });
+  ipcMain.handle(IPC.credentialsRemove, (_event, id: string) => current.credentials.remove(id));
+  ipcMain.handle(IPC.credentialsFill, (event) => {
+    if (event.sender.session !== session.fromPartition(SSO_PORTAL_PARTITION)) {
+      throw new Error("forbidden");
+    }
+    return current.credentials.currentForAssist();
+  });
   ipcMain.handle(IPC.commandJump, (_event, serviceId: string) => {
     const key = current.controller.snapshot().selectedAccountRoleKey;
     const service = AWS_SERVICES.find((item) => item.id === serviceId);
@@ -662,6 +678,56 @@ async function setupShell(window: BaseWindow): Promise<void> {
     },
     30_000,
   );
+  const unlockGate: UnlockGate = {
+    canPromptBiometric: () =>
+      process.platform === "darwin" && systemPreferences.canPromptTouchID(),
+    promptUnlock: async (reason) => {
+      if (process.platform === "darwin" && systemPreferences.canPromptTouchID()) {
+        try {
+          await systemPreferences.promptTouchID(reason);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      const result = await dialog.showMessageBox({
+        type: "info",
+        buttons: ["解錠", "キャンセル"],
+        defaultId: 0,
+        cancelId: 1,
+        message: `${reason}しますか？`,
+        detail:
+          "この環境では Touch ID が使えないため、確認ダイアログで解錠します。Keychain 由来の暗号化はそのまま使われます。",
+      });
+      return result.response === 0;
+    },
+  };
+  const readEncryptedFile = async (path: string): Promise<Buffer | null> => {
+    try {
+      return await readFile(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
+      throw error;
+    }
+  };
+  const writeEncryptedFile = async (path: string, data: Buffer): Promise<void> => {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, data);
+  };
+  current.credentials = new CredentialStore({
+    credentialsEncPath: join(app.getPath("userData"), "creds.enc"),
+    safeStorage: {
+      isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+      encryptString: (plain) => safeStorage.encryptString(plain),
+      decryptString: (blob) => safeStorage.decryptString(blob),
+    },
+    unlockGate,
+    readFile: readEncryptedFile,
+    writeFile: writeEncryptedFile,
+    onChange: () => broadcast(current),
+  });
   current.totp = new TotpStore({
     totpEncPath: join(app.getPath("userData"), "totp.enc"),
     safeStorage: {
@@ -669,30 +735,7 @@ async function setupShell(window: BaseWindow): Promise<void> {
       encryptString: (plain) => safeStorage.encryptString(plain),
       decryptString: (blob) => safeStorage.decryptString(blob),
     },
-    unlockGate: {
-      canPromptBiometric: () =>
-        process.platform === "darwin" && systemPreferences.canPromptTouchID(),
-      promptUnlock: async (reason) => {
-        if (process.platform === "darwin" && systemPreferences.canPromptTouchID()) {
-          try {
-            await systemPreferences.promptTouchID(reason);
-            return true;
-          } catch {
-            return false;
-          }
-        }
-        const result = await dialog.showMessageBox({
-          type: "info",
-          buttons: ["解錠", "キャンセル"],
-          defaultId: 0,
-          cancelId: 1,
-          message: "TOTP を解錠しますか？",
-          detail:
-            "この環境では Touch ID が使えないため、確認ダイアログで解錠します。Keychain 由来の暗号化はそのまま使われます。",
-        });
-        return result.response === 0;
-      },
-    },
+    unlockGate,
     clipboard: clipboardGuard,
     readFile: async (path) => {
       try {
@@ -787,6 +830,7 @@ if (urlHandoff.acquireInstanceLock()) {
 
     powerMonitor.on("resume", () => {
       shell?.totp.lock();
+      shell?.credentials.lock();
     });
 
     void createShell().catch((error) => {
