@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import type { TotpCodeView, TotpSnapshot } from "../shared/types";
+import { ChevronIcon } from "./icons";
 
 const emptyTotp: TotpSnapshot = {
   locked: true,
@@ -93,13 +94,16 @@ export function TotpPanel() {
           <h2>TOTP</h2>
           <button
             type="button"
-            className="text-button"
+            className="icon-button"
+            aria-label="TOTP を開く"
+            aria-expanded={false}
+            title="TOTP を開く"
             onClick={() => {
               setOpen(true);
               void window.brawser.totp.unlock();
             }}
           >
-            開く
+            <ChevronIcon direction="up" />
           </button>
         </div>
         <p className="placeholder">⌘⇧T で開閉します。</p>
@@ -111,8 +115,15 @@ export function TotpPanel() {
     <section className="section totp-section totp-section-open" aria-label="TOTP" ref={sectionRef}>
       <div className="section-heading">
         <h2>TOTP</h2>
-        <button type="button" className="text-button" onClick={() => setOpen(false)}>
-          閉じる
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="TOTP を閉じる"
+          aria-expanded={true}
+          title="TOTP を閉じる"
+          onClick={() => setOpen(false)}
+        >
+          <ChevronIcon direction="down" />
         </button>
       </div>
 

@@ -21,6 +21,7 @@ import {
 import { AccountPalette } from "./AccountPalette";
 import { CommandPalette } from "./CommandPalette";
 import { FindBar } from "./FindBar";
+import { ChevronIcon, GearIcon } from "./icons";
 import { RegionPicker } from "./RegionPicker";
 import { SigninPanel } from "./SigninPanel";
 import { TotpPanel } from "./TotpPanel";
@@ -233,6 +234,7 @@ export function SidePanel() {
     activeMatch: 0,
   });
   const [hibernateMinutes, setHibernateMinutes] = useState(30);
+  const [ssoOpen, setSsoOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [startUrl, setStartUrl] = useState("");
   const [region, setRegion] = useState(DEFAULT_ACCOUNT_REGION);
@@ -349,35 +351,52 @@ export function SidePanel() {
       </header>
 
       <section className="section sso-section" aria-label="SSO セッション">
-        <SsoStatusBar
-          directory={directory}
-          startUrl={startUrl}
-          region={region}
-          onStartUrl={setStartUrl}
-          onRegion={setRegion}
-          onConfigure={onConfigureSso}
-        />
-        <label className="hibernate-setting">
-          ハイバネート（分）
-          <input
-            type="number"
-            min={5}
-            max={240}
-            value={hibernateMinutes}
-            onChange={(event) => setHibernateMinutes(Number(event.target.value) || 30)}
-            onBlur={() => {
-              const ms = Math.max(5, hibernateMinutes) * 60_000;
-              void window.brawser.workspace.setHibernateAfterMs(ms);
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => void window.brawser.urlHandoff.registerProtocol()}
-        >
-          AWS URL の受け取りを登録
-        </button>
+        <div className="section-heading">
+          <h2>SSO</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={ssoOpen ? "SSO 設定を閉じる" : "SSO 設定を開く"}
+            aria-expanded={ssoOpen}
+            title={ssoOpen ? "SSO 設定を閉じる" : "SSO 設定を開く"}
+            onClick={() => setSsoOpen((current) => !current)}
+          >
+            <ChevronIcon direction={ssoOpen ? "up" : "down"} />
+          </button>
+        </div>
+        {ssoOpen ? (
+          <>
+            <SsoStatusBar
+              directory={directory}
+              startUrl={startUrl}
+              region={region}
+              onStartUrl={setStartUrl}
+              onRegion={setRegion}
+              onConfigure={onConfigureSso}
+            />
+            <label className="hibernate-setting">
+              ハイバネート（分）
+              <input
+                type="number"
+                min={5}
+                max={240}
+                value={hibernateMinutes}
+                onChange={(event) => setHibernateMinutes(Number(event.target.value) || 30)}
+                onBlur={() => {
+                  const ms = Math.max(5, hibernateMinutes) * 60_000;
+                  void window.brawser.workspace.setHibernateAfterMs(ms);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void window.brawser.urlHandoff.registerProtocol()}
+            >
+              AWS URL の受け取りを登録
+            </button>
+          </>
+        ) : null}
       </section>
 
       <section className="section account-section" aria-label="アカウント">
@@ -417,14 +436,17 @@ export function SidePanel() {
                   <span className="account-name">{group.accountName}</span>
                   <button
                     type="button"
-                    className="text-button"
+                    className="icon-button"
+                    aria-label={`${group.accountName} の設定`}
+                    aria-expanded={editingAccountId === group.accountId}
+                    title="アカウント設定"
                     onClick={() =>
                       setEditingAccountId((current) =>
                         current === group.accountId ? null : group.accountId,
                       )
                     }
                   >
-                    設定
+                    <GearIcon />
                   </button>
                 </div>
                 {editingAccountId === group.accountId ? (
@@ -579,7 +601,6 @@ function SsoStatusBar({
   if (sso.status === "unconfigured") {
     return (
       <form className="sso-form" onSubmit={(event) => void onConfigure(event)}>
-        <h2>SSO</h2>
         <label>
           Start URL
           <input
@@ -604,7 +625,6 @@ function SsoStatusBar({
 
   return (
     <div className="sso-status">
-      <h2>SSO</h2>
       <p className={`sso-remaining tone-${expiryTone(sso.remainingMs) ?? "ok"}`}>
         {sso.status === "authorizing" && "Identity Center で承認してください"}
         {sso.status === "signed-in" &&
