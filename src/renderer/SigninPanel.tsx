@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SigninCredentialSnapshot } from "../shared/types";
+import { ChevronIcon } from "./icons";
 
 const emptySignin: SigninCredentialSnapshot = {
   locked: true,
@@ -56,13 +57,16 @@ export function SigninPanel() {
           <h2>Sign-in</h2>
           <button
             type="button"
-            className="text-button"
+            className="icon-button"
+            aria-label="Sign-in を開く"
+            aria-expanded={false}
+            title="Sign-in を開く"
             onClick={() => {
               setOpen(true);
               void window.brawser.credentials.unlock();
             }}
           >
-            開く
+            <ChevronIcon direction="up" />
           </button>
         </div>
         <p className="placeholder">
@@ -78,8 +82,15 @@ export function SigninPanel() {
     <section className="section signin-section signin-section-open" aria-label="サインイン情報">
       <div className="section-heading">
         <h2>Sign-in</h2>
-        <button type="button" className="text-button" onClick={() => setOpen(false)}>
-          閉じる
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Sign-in を閉じる"
+          aria-expanded={true}
+          title="Sign-in を閉じる"
+          onClick={() => setOpen(false)}
+        >
+          <ChevronIcon direction="down" />
         </button>
       </div>
 
