@@ -148,11 +148,9 @@ export class AppController {
   }
 
   async updateAccount(update: AccountSettingsUpdate): Promise<void> {
-    await this.config.updateAccountSettings(update.accountId, {
-      color: update.color,
-      tags: update.tags,
-      defaultRegion: update.defaultRegion,
-    });
+    // 項目を数え上げると、設定が増えたときに黙って落ちる。まとめて渡す。
+    const { accountId, ...patch } = update;
+    await this.config.updateAccountSettings(accountId, patch);
     this.options.onChange();
   }
 

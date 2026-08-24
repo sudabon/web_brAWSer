@@ -7,8 +7,8 @@ import {
 
 const OVERLAY_ID = "brawser-signin-assist";
 
-const USERNAME_HINT = /user|email|mail|account|login|signin/i;
-const ONE_TIME_CODE_HINT = /otp|mfa|totp|code|token/i;
+const USERNAME_HINT = /user|email|mail|account|login|signin|ユーザー|メール|アカウント|サインイン|ログイン/i;
+const ONE_TIME_CODE_HINT = /otp|mfa|totp|code|token|コード|ワンタイム|認証番号/i;
 
 export type SigninCredentialFill = {
   username: string;
@@ -170,14 +170,65 @@ function isUsableInput(input: HTMLInputElement): boolean {
 }
 
 function isUsernameInput(input: HTMLInputElement): boolean {
-  if (input.type === "password") {
+  if (input.type === "password" || looksLikeOneTimeCodeInput(input)) {
     return false;
   }
-  const hints = `${input.autocomplete ?? ""} ${input.name ?? ""} ${input.id ?? ""}`;
+  const hints = `${input.autocomplete ?? ""} ${input.name ?? ""} ${input.id ?? ""} ${accessibleLabel(input)}`;
   if (ONE_TIME_CODE_HINT.test(hints)) {
     return false;
   }
   return input.autocomplete === "username" || input.type === "email" || USERNAME_HINT.test(hints);
+}
+
+/**
+ * ラベル文言に頼らず、形からワンタイムコード欄を見分ける。
+ * 文言が想定外でもここで弾き、パスワードが OTP 欄へ流れるのを防ぐ。
+ */
+function looksLikeOneTimeCodeInput(input: HTMLInputElement): boolean {
+  if (input.autocomplete === "one-time-code" || input.type === "tel") {
+    return true;
+  }
+  const inputMode =
+    typeof input.getAttribute === "function" ? (input.getAttribute("inputmode") ?? "") : "";
+  if (inputMode.toLowerCase() === "numeric") {
+    return true;
+  }
+  return input.maxLength === 6 || input.maxLength === 8;
+}
+
+/**
+ * 入力欄に見えている文言を集める。
+ * Cloudscape (awsui) 製の Identity Center サインイン画面は id を awsui-input-0 と自動生成し、
+ * name を持たず autocomplete も "on" なので、label だけが人間と同じ手がかりになる。
+ */
+function accessibleLabel(input: HTMLInputElement): string {
+  const parts: string[] = [];
+  const attribute = (name: string): string =>
+    typeof input.getAttribute === "function" ? (input.getAttribute(name) ?? "") : "";
+  parts.push(attribute("aria-label"));
+
+  const doc = input.ownerDocument ?? null;
+  for (const id of attribute("aria-labelledby").split(/\s+/).filter(Boolean)) {
+    parts.push(doc?.getElementById(id)?.textContent ?? "");
+  }
+  if (input.id && doc) {
+    try {
+      parts.push(doc.querySelector(`label[for="${escapeSelector(input.id)}"]`)?.textContent ?? "");
+    } catch {
+      // 選択子として使えない id は手がかりにしない。
+    }
+  }
+  if (typeof input.closest === "function") {
+    parts.push(input.closest("label")?.textContent ?? "");
+  }
+  parts.push(input.placeholder ?? "");
+  return parts.join(" ");
+}
+
+function escapeSelector(value: string): string {
+  return typeof CSS !== "undefined" && typeof CSS.escape === "function"
+    ? CSS.escape(value)
+    : value.replace(/["\\]/g, "\\$&");
 }
 
 function setInputValue(input: HTMLInputElement, value: string): void {

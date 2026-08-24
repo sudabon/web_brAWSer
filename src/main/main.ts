@@ -249,9 +249,9 @@ function createMenu(current: Shell): void {
         }),
         { type: "separator" },
         click("devtools-content", () => {
-          current.tabManager.activeTab?.view?.webContents.openDevTools({
-            mode: "right",
-          });
+          const contents =
+            current.tabManager.activeTab?.view?.webContents ?? current.portal.webContents;
+          contents?.openDevTools({ mode: "right" });
         }),
         click("devtools-ui", () => {
           const contents = current.sidePanelView.webContents;

@@ -53,6 +53,8 @@ export type AccountRoleView = {
   color: string;
   tags: AccountTag[];
   defaultRegion: string;
+  /** 一覧の最上段に固定する。 */
+  pinned: boolean;
 };
 
 export type SsoStatus =
@@ -100,6 +102,7 @@ export type AccountSettingsUpdate = {
   color?: string;
   tags?: AccountTag[];
   defaultRegion?: string;
+  pinned?: boolean;
 };
 
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";

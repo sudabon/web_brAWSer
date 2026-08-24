@@ -41,6 +41,11 @@ export class SsoPortalPresenter implements DeviceAuthPresenter {
     await view.webContents.loadURL(verificationUriComplete);
   }
 
+  /** 表示中のポータル view。DevTools を開く用途にのみ使う。 */
+  get webContents(): WebContentsView["webContents"] | null {
+    return this.#view?.webContents ?? null;
+  }
+
   layout(): void {
     this.#view?.setBounds(this.options.getBounds());
   }

@@ -69,14 +69,17 @@ function groupAccounts(accounts: AccountRoleView[]): {
   color: string;
   tags: AccountTag[];
   defaultRegion: string;
+  pinned: boolean;
   roles: AccountRoleView[];
 }[] {
+  // 並び順は mergeAccounts が決め済み。ここは受け取った順を崩さずまとめるだけ。
   const groups: {
     accountId: string;
     accountName: string;
     color: string;
     tags: AccountTag[];
     defaultRegion: string;
+    pinned: boolean;
     roles: AccountRoleView[];
   }[] = [];
   const index = new Map<string, number>();
@@ -90,6 +93,7 @@ function groupAccounts(accounts: AccountRoleView[]): {
         color: account.color,
         tags: account.tags,
         defaultRegion: account.defaultRegion,
+        pinned: account.pinned,
         roles: [account],
       });
     } else {
@@ -455,6 +459,7 @@ export function SidePanel() {
                     color={group.color}
                     tags={group.tags}
                     defaultRegion={group.defaultRegion}
+                    pinned={group.pinned}
                   />
                 ) : null}
                 <ul>
@@ -656,11 +661,13 @@ function AccountSettingsEditor({
   color,
   tags,
   defaultRegion,
+  pinned,
 }: {
   accountId: string;
   color: string;
   tags: AccountTag[];
   defaultRegion: string;
+  pinned: boolean;
 }) {
   const [region, setRegion] = useState(defaultRegion);
 
@@ -668,12 +675,21 @@ function AccountSettingsEditor({
     color?: string;
     tags?: AccountTag[];
     defaultRegion?: string;
+    pinned?: boolean;
   }): Promise<void> {
     await window.brawser.directory.updateAccount({ accountId, ...patch });
   }
 
   return (
     <div className="account-settings">
+      <label className="pin-row">
+        <input
+          type="checkbox"
+          checked={pinned}
+          onChange={(event) => void save({ pinned: event.target.checked })}
+        />
+        一覧の最上段に固定する
+      </label>
       <div className="color-row">
         {ACCOUNT_COLORS.map((value) => (
           <button

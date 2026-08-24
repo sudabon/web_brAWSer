@@ -6,10 +6,15 @@ import {
 export type ColorBarDocument = {
   getElementById(id: string): Element | null;
   createElement(tag: string): HTMLElement;
-  documentElement: Element;
+  /** sandboxed preload は document 生成前に走ることがあり、その間 null になる。 */
+  documentElement: Element | null;
+  addEventListener?(type: string, handler: () => void, options?: { once?: boolean }): void;
 };
 
-export function applyAccountColorBar(doc: ColorBarDocument, color: string): HTMLElement {
+export function applyAccountColorBar(doc: ColorBarDocument, color: string): HTMLElement | null {
+  if (!doc.documentElement) {
+    return null;
+  }
   const existing = doc.getElementById(ACCOUNT_COLOR_BAR_ID);
   const bar = (existing as HTMLElement | null) ?? doc.createElement("div");
   bar.id = ACCOUNT_COLOR_BAR_ID;
@@ -37,25 +42,42 @@ export function startAccountColorBar(
   observe: boolean,
 ): { setColor(color: string): void; disconnect(): void } {
   let color = initialColor ?? "";
-  if (color) {
-    applyAccountColorBar(doc, color);
-  }
+  let observer: MutationObserver | undefined;
 
-  const Observer = doc.defaultView?.MutationObserver;
-  const observer =
-    observe && Observer
-      ? new Observer(() => {
-          if (color && !doc.getElementById(ACCOUNT_COLOR_BAR_ID)) {
-            applyAccountColorBar(doc, color);
-          }
-        })
-      : undefined;
-  observer?.observe(doc.documentElement, { childList: true, subtree: true });
+  // documentElement が生えるまで observe できない。ここで投げると preload 全体が
+  // 中断し、後続の TOTP / サインイン補助まで動かなくなる。
+  const ensure = (): void => {
+    const documentElement = doc.documentElement;
+    if (!documentElement) {
+      return;
+    }
+    if (color) {
+      applyAccountColorBar(doc, color);
+    }
+    if (!observe || observer) {
+      return;
+    }
+    const Observer = doc.defaultView?.MutationObserver;
+    if (!Observer) {
+      return;
+    }
+    observer = new Observer(() => {
+      if (color && !doc.getElementById(ACCOUNT_COLOR_BAR_ID)) {
+        applyAccountColorBar(doc, color);
+      }
+    });
+    observer.observe(documentElement, { childList: true, subtree: true });
+  };
+
+  ensure();
+  if (!doc.documentElement) {
+    doc.addEventListener?.("DOMContentLoaded", ensure, { once: true });
+  }
 
   return {
     setColor(next: string) {
       color = next;
-      applyAccountColorBar(doc, next);
+      ensure();
     },
     disconnect() {
       observer?.disconnect();

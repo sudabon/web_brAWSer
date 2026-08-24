@@ -14,6 +14,7 @@ export type AccountSettings = {
   color: string;
   tags: AccountTag[];
   defaultRegion: string;
+  pinned: boolean;
 };
 
 export type SsoStartConfig = {
@@ -91,11 +92,15 @@ export class ConfigStore {
     return this.#config.directoryCache?.accounts ?? [];
   }
 
+  /**
+   * ListAccounts が返す順序は安定しないので、ここで並びを決め切る。
+   * 戻り値は一覧・検索・タブが共有するため、順序を揃える場所はここ 1 箇所でよい。
+   */
   mergeAccounts(accounts: AccountWithRoles[]): AccountRoleView[] {
     const views: AccountRoleView[] = [];
-    for (const account of accounts) {
+    for (const account of [...accounts].sort((a, b) => this.#compareAccounts(a, b))) {
       const settings = this.settingsFor(account.accountId);
-      for (const roleName of account.roleNames) {
+      for (const roleName of [...account.roleNames].sort(compareNames)) {
         views.push({
           accountId: account.accountId,
           accountName: account.accountName,
@@ -105,10 +110,22 @@ export class ConfigStore {
           color: settings.color,
           tags: [...settings.tags],
           defaultRegion: settings.defaultRegion,
+          pinned: settings.pinned,
         });
       }
     }
     return views;
+  }
+
+  #compareAccounts(a: AccountWithRoles, b: AccountWithRoles): number {
+    const pinned = Number(this.settingsFor(b.accountId).pinned) -
+      Number(this.settingsFor(a.accountId).pinned);
+    if (pinned !== 0) {
+      return pinned;
+    }
+    const byName = compareNames(a.accountName, b.accountName);
+    // 同名のアカウントでも並びが揺れないよう、id で決着させる。
+    return byName !== 0 ? byName : compareNames(a.accountId, b.accountId);
   }
 
   async setSsoConfig(sso: SsoStartConfig): Promise<void> {
@@ -125,6 +142,7 @@ export class ConfigStore {
       color: patch.color ?? current.color,
       tags: patch.tags ?? current.tags,
       defaultRegion: patch.defaultRegion ?? current.defaultRegion,
+      pinned: patch.pinned ?? current.pinned,
     };
     this.#config.accountSettings[accountId] = next;
     await this.#persist();
@@ -151,13 +169,14 @@ export class ConfigStore {
   }
 
   settingsFor(accountId: string): AccountSettings {
-    return (
-      this.#config.accountSettings[accountId] ?? {
-        color: assignColor(accountId),
-        tags: [],
-        defaultRegion: DEFAULT_ACCOUNT_REGION,
-      }
-    );
+    // pinned を持たない時期に保存された設定が残るので、既定値で補う。
+    const stored = this.#config.accountSettings[accountId];
+    return {
+      color: stored?.color ?? assignColor(accountId),
+      tags: stored?.tags ?? [],
+      defaultRegion: stored?.defaultRegion ?? DEFAULT_ACCOUNT_REGION,
+      pinned: stored?.pinned ?? false,
+    };
   }
 
   workspace(): WorkspaceConfig {
@@ -192,6 +211,11 @@ export class ConfigStore {
       windowHeight: this.#config.windowHeight,
     });
   }
+}
+
+/** 数字を値として比べるので acct2 が acct10 より前に来る。 */
+function compareNames(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
 function isSsoStartConfig(value: unknown): value is SsoStartConfig {

@@ -674,6 +674,20 @@ body,
   padding: 6px 8px 10px;
 }
 
+/* 既定の label は grid、input は幅 100% なので、チェックボックス行だけ戻す。 */
+.account-settings .pin-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.account-settings .pin-row input {
+  width: auto;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
 .color-row,
 .tag-row {
   display: flex;

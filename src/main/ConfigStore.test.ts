@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -31,6 +31,94 @@ describe("ConfigStore", () => {
     expect(ACCOUNT_COLORS).toContain(views[0]?.color);
   });
 
+  it("orders accounts alphabetically instead of by the order AWS returned them", async () => {
+    const { store } = await tempStore();
+    const views = store.mergeAccounts([
+      { accountId: "333333333333", accountName: "zeta", roleNames: ["Admin"] },
+      { accountId: "111111111111", accountName: "alpha", roleNames: ["Admin"] },
+      { accountId: "222222222222", accountName: "make.AI-admin", roleNames: ["Admin"] },
+    ]);
+
+    expect(views.map((view) => view.accountName)).toEqual(["alpha", "make.AI-admin", "zeta"]);
+  });
+
+  it("orders account names with embedded numbers by value, not by digit", async () => {
+    const { store } = await tempStore();
+    const views = store.mergeAccounts([
+      { accountId: "111111111111", accountName: "acct10", roleNames: ["Admin"] },
+      { accountId: "222222222222", accountName: "acct2", roleNames: ["Admin"] },
+    ]);
+
+    expect(views.map((view) => view.accountName)).toEqual(["acct2", "acct10"]);
+  });
+
+  it("separates accounts that share a name by account id", async () => {
+    const { store } = await tempStore();
+    const views = store.mergeAccounts([
+      { accountId: "222222222222", accountName: "same", roleNames: ["Admin"] },
+      { accountId: "111111111111", accountName: "same", roleNames: ["Admin"] },
+    ]);
+
+    expect(views.map((view) => view.accountId)).toEqual(["111111111111", "222222222222"]);
+  });
+
+  it("lifts pinned accounts above the alphabetical run", async () => {
+    const { store } = await tempStore();
+    await store.updateAccountSettings("222222222222", { pinned: true });
+    const views = store.mergeAccounts([
+      { accountId: "111111111111", accountName: "alpha", roleNames: ["Admin"] },
+      { accountId: "222222222222", accountName: "make.AI-admin", roleNames: ["Admin"] },
+      { accountId: "333333333333", accountName: "zeta", roleNames: ["Admin"] },
+    ]);
+
+    expect(views.map((view) => view.accountName)).toEqual(["make.AI-admin", "alpha", "zeta"]);
+    expect(views[0]?.pinned).toBe(true);
+    expect(views[1]?.pinned).toBe(false);
+  });
+
+  it("keeps pinned accounts alphabetical among themselves", async () => {
+    const { store } = await tempStore();
+    await store.updateAccountSettings("333333333333", { pinned: true });
+    await store.updateAccountSettings("111111111111", { pinned: true });
+    const views = store.mergeAccounts([
+      { accountId: "333333333333", accountName: "zeta", roleNames: ["Admin"] },
+      { accountId: "222222222222", accountName: "beta", roleNames: ["Admin"] },
+      { accountId: "111111111111", accountName: "alpha", roleNames: ["Admin"] },
+    ]);
+
+    expect(views.map((view) => view.accountName)).toEqual(["alpha", "zeta", "beta"]);
+  });
+
+  it("orders the roles inside an account by name", async () => {
+    const { store } = await tempStore();
+    const views = store.mergeAccounts([
+      { accountId: "111111111111", accountName: "alpha", roleNames: ["ReadOnly", "Admin", "Billing"] },
+    ]);
+
+    expect(views.map((view) => view.roleName)).toEqual(["Admin", "Billing", "ReadOnly"]);
+  });
+
+  it("treats account settings saved before pinning existed as unpinned", async () => {
+    const { dir } = await tempStore();
+    await writeFile(
+      join(dir, "config.json"),
+      JSON.stringify({
+        accountSettings: {
+          "111111111111": { color: "#ff0000", tags: ["prod"], defaultRegion: "us-east-1" },
+        },
+      }),
+    );
+    const store = new ConfigStore(dir);
+    await store.load();
+
+    expect(store.settingsFor("111111111111").pinned).toBe(false);
+    const views = store.mergeAccounts([
+      { accountId: "111111111111", accountName: "alpha", roleNames: ["Admin"] },
+    ]);
+    expect(views[0]?.pinned).toBe(false);
+    expect(views[0]?.color).toBe("#ff0000");
+  });
+
   it("persists account settings and SSO start configuration to config.json", async () => {
     const { store, dir } = await tempStore();
     await store.setSsoConfig({
@@ -55,6 +143,7 @@ describe("ConfigStore", () => {
       color: "#ff0000",
       tags: ["prod"],
       defaultRegion: "us-east-1",
+      pinned: false,
     });
     expect(JSON.stringify(disk)).not.toMatch(/accessKeyId|secretAccessKey|sessionToken|SigninToken/i);
   });

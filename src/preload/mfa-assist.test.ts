@@ -23,4 +23,11 @@ describe("mfa assist preload contract", () => {
     expect(source).toMatch(/exposeInMainWorld\("brawserAws", api\)/);
     expect(source).not.toMatch(/exposeInMainWorld\("brawserAws", \{[^}]*color/);
   });
+
+  it("isolates each feature so one failure cannot disable the others", async () => {
+    const source = await readFile(join(root, "src/preload/preload-aws.ts"), "utf8");
+    for (const feature of ["startAccountColorBar", "startMfaAssist", "startSigninAssist"]) {
+      expect(source).toMatch(new RegExp(`startFeature\\([^)]*\\n?\\s*${feature}|startFeature\\(.*=>\\s*${feature}`, "s"));
+    }
+  });
 });

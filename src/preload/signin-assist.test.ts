@@ -11,6 +11,10 @@ type FakeInputAttrs = {
   name?: string;
   id?: string;
   autocomplete?: string;
+  placeholder?: string;
+  ariaLabel?: string;
+  wrappingLabelText?: string;
+  maxLength?: number;
   disabled?: boolean;
   readOnly?: boolean;
   width?: number;
@@ -23,13 +27,24 @@ function fakeInput(attrs: FakeInputAttrs = {}) {
     name: attrs.name ?? "",
     id: attrs.id ?? "",
     autocomplete: attrs.autocomplete ?? "",
+    placeholder: attrs.placeholder ?? "",
+    maxLength: attrs.maxLength ?? -1,
     disabled: attrs.disabled ?? false,
     readOnly: attrs.readOnly ?? false,
     value: "",
     events: [] as string[],
     focused: false,
+    ownerDocument: null as unknown,
     focus(): void {
       this.focused = true;
+    },
+    getAttribute(name: string): string | null {
+      return name === "aria-label" ? (attrs.ariaLabel ?? null) : null;
+    },
+    closest(selector: string): { textContent: string } | null {
+      return selector === "label" && attrs.wrappingLabelText
+        ? { textContent: attrs.wrappingLabelText }
+        : null;
     },
     dispatchEvent(event: { type: string }): boolean {
       this.events.push(event.type);
@@ -44,8 +59,32 @@ function fakeInput(attrs: FakeInputAttrs = {}) {
   };
 }
 
-function fakeRoot(inputs: unknown[]) {
-  return { querySelectorAll: () => inputs } as never;
+/** Cloudscape のように `label[for]` で入力欄に文言が紐づくページを模す。 */
+function fakeRoot(inputs: unknown[], labelsByInputId: Record<string, string> = {}) {
+  const doc = {
+    querySelectorAll: () => inputs,
+    getElementById: () => null,
+    querySelector: (selector: string) => {
+      const label = /^label\[for="(.*)"\]$/.exec(selector);
+      if (label) {
+        const text = labelsByInputId[label[1]];
+        return text ? { textContent: text } : null;
+      }
+      const maxLength = /^input\[type="text"\]\[maxlength="(\d+)"\]$/.exec(selector);
+      if (maxLength) {
+        return (
+          (inputs as { type: string; maxLength: number }[]).find(
+            (input) => input.type === "text" && input.maxLength === Number(maxLength[1]),
+          ) ?? null
+        );
+      }
+      return null;
+    },
+  };
+  for (const input of inputs as { ownerDocument: unknown }[]) {
+    input.ownerDocument = doc;
+  }
+  return doc as never;
 }
 
 describe("findSigninInputs", () => {
@@ -71,9 +110,41 @@ describe("findSigninInputs", () => {
     expect(found.password).toBeNull();
   });
 
+  it("finds the Cloudscape username field, which is named only by its label", () => {
+    // 実測 (ap-northeast-1.signin.aws の login ステップ):
+    // type=text / name="" / id="awsui-input-0" / autocomplete="on" で、
+    // 手がかりは <label for="awsui-input-0">ユーザー名</label> だけ。
+    const username = fakeInput({ type: "text", id: "awsui-input-0", autocomplete: "on" });
+    const found = findSigninInputs(fakeRoot([username], { "awsui-input-0": "ユーザー名" }));
+    expect(found.username).toBe(username);
+    expect(found.password).toBeNull();
+  });
+
+  it("rejects the Cloudscape one-time-code field, which is also named only by its label", () => {
+    const otp = fakeInput({ type: "text", id: "awsui-input-0", autocomplete: "on" });
+    const found = findSigninInputs(fakeRoot([otp], { "awsui-input-0": "認証コード" }));
+    expect(found.username).toBeNull();
+    expect(found.password).toBeNull();
+  });
+
+  it("reads the label from aria-label and from a wrapping label element", () => {
+    const byAria = fakeInput({ ariaLabel: "Username" });
+    expect(findSigninInputs(fakeRoot([byAria])).username).toBe(byAria);
+    const byWrapper = fakeInput({ wrappingLabelText: "メールアドレス" });
+    expect(findSigninInputs(fakeRoot([byWrapper])).username).toBe(byWrapper);
+  });
+
   it("never mistakes the one-time-code field for the username", () => {
     const otp = fakeInput({ name: "mfaCode", autocomplete: "one-time-code" });
     const found = findSigninInputs(fakeRoot([otp]));
+    expect(found.username).toBeNull();
+    expect(found.password).toBeNull();
+  });
+
+  it("never claims an input that the TOTP assist detects as the one-time-code field", () => {
+    // ラベル文言が想定外でも、OTP 欄と判定された要素は構造的に除外する。
+    const otp = fakeInput({ type: "text", id: "awsui-input-0", maxLength: 6 });
+    const found = findSigninInputs(fakeRoot([otp], { "awsui-input-0": "ユーザー名" }));
     expect(found.username).toBeNull();
     expect(found.password).toBeNull();
   });
