@@ -1,8 +1,5 @@
-# tab-persistence Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change workspace-persistence-guardrails. Update Purpose after archive.
-## Requirements
 ### Requirement: タブ状態の永続化
 
 システムはタブツリー（ID、所属アカウント×ロール、URL、タイトル、最終アクティブ時刻）を `tabs.json` に保存しなければならない (SHALL)。保存はサイドパネルに表示される順序と一致する配列順で行わなければならない (MUST)。
@@ -40,37 +37,3 @@ TBD - created by archiving change workspace-persistence-guardrails. Update Purpo
 
 - **WHEN** 利用者がタブを並べ替えたあとアプリを再起動する
 - **THEN** サイドパネルのタブセクションには並べ替え後の順序でタブが表示される
-
-### Requirement: 非アクティブタブの自動ハイバネート
-
-システムは設定された時間（既定30分）を超えて非アクティブなタブの `webContents` を破棄し、URL / タイトル / favicon のみを保持しなければならない (SHALL)。
-
-#### Scenario: 時間経過によるハイバネート
-
-- **WHEN** タブが30分間アクティブにならない
-- **THEN** その `webContents` が破棄され、タブはハイバネート状態としてタブセクションに残る
-
-#### Scenario: 再選択時の復元
-
-- **WHEN** ハイバネートされたタブが再選択される
-- **THEN** 同一パーティションで `webContents` が再生成され、保存 URL へ再ナビゲートされる。コンソールセッションは Cookie 側に残っているため再サインインは発生しない
-
-#### Scenario: しきい値の変更
-
-- **WHEN** 利用者がハイバネートまでの時間を変更する
-- **THEN** 新しい値が保存され、以降のハイバネート判定に適用される
-
-### Requirement: アカウントあたりのタブ数上限
-
-システムはアカウントあたりのタブ数が上限（推奨10）を超えた場合、最終アクティブ時刻の古い順に自動ハイバネートしなければならない (SHALL)。
-
-#### Scenario: 上限超過
-
-- **WHEN** 1アカウントで11個目のタブが開かれる
-- **THEN** 最も古くアクティブだったタブがハイバネートされる
-
-#### Scenario: タブは閉じない
-
-- **WHEN** 上限超過によるハイバネートが発生する
-- **THEN** タブ自体は閉じられず、タブセクションに残り再選択可能である
-

@@ -171,6 +171,7 @@ export const IPC = {
   tabsClose: "tabs:close",
   tabsChanged: "tabs:changed",
   tabsRename: "tabs:rename",
+  tabsReorder: "tabs:reorder",
   panelGet: "panel:get",
   panelSetCollapsed: "panel:set-collapsed",
   panelSetWidth: "panel:set-width",

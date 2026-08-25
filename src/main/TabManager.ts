@@ -168,6 +168,24 @@ export class TabManager {
     this.options.onChange();
   }
 
+  reorderTab(id: string, toIndex: number): void {
+    const from = this.#tabs.findIndex((tab) => tab.id === id);
+    if (from === -1 || !Number.isFinite(toIndex)) {
+      return;
+    }
+    const clamped = Math.max(0, Math.min(Math.trunc(toIndex), this.#tabs.length - 1));
+    if (from === clamped) {
+      return;
+    }
+    const [tab] = this.#tabs.splice(from, 1);
+    if (!tab) {
+      return;
+    }
+    this.#tabs.splice(clamped, 0, tab);
+    this.#persist();
+    this.options.onChange();
+  }
+
   selectTab(id: string, options: { interact?: boolean } = {}): void {
     const next = this.#tabs.find((tab) => tab.id === id);
     if (!next) {

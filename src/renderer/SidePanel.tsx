@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
@@ -103,18 +104,61 @@ function groupAccounts(accounts: AccountRoleView[]): {
   return groups;
 }
 
+type DropPlace = "before" | "after";
+
+function dropToIndex(fromIndex: number, hoverIndex: number, place: DropPlace): number {
+  let toIndex = place === "before" ? hoverIndex : hoverIndex + 1;
+  if (fromIndex < toIndex) {
+    toIndex -= 1;
+  }
+  return toIndex;
+}
+
+function dropPlaceFromPointer(event: ReactDragEvent<HTMLLIElement>): DropPlace {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+}
+
+function tabItemClass(tab: TabSnapshot, dragging: boolean): string {
+  const classes = ["tab-item"];
+  if (tab.active) {
+    classes.push("active");
+  }
+  if (dragging) {
+    classes.push("dragging");
+  }
+  return classes.join(" ");
+}
+
 function TabListItem({
   tab,
+  index,
   prodWarning,
   accountColor,
+  dragging,
+  dropPlace,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onDragLeave,
 }: {
   tab: TabSnapshot;
+  index: number;
   prodWarning: boolean;
   accountColor?: string;
+  dragging: boolean;
+  dropPlace: DropPlace | null;
+  onDragStart: (index: number, event: ReactDragEvent<HTMLLIElement>) => void;
+  onDragOver: (index: number, event: ReactDragEvent<HTMLLIElement>) => void;
+  onDrop: (index: number, event: ReactDragEvent<HTMLLIElement>) => void;
+  onDragEnd: () => void;
+  onDragLeave: (index: number, event: ReactDragEvent<HTMLLIElement>) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tab.title);
   const cancelled = useRef(false);
+  const ignoreClick = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -157,11 +201,33 @@ function TabListItem({
   const colorDot = accountColor ? (
     <span className="color-dot filled" style={{ background: accountColor }} />
   ) : null;
+  const itemClass = tabItemClass(tab, dragging);
+  const rowClass = dropPlace ? `drop-${dropPlace}` : undefined;
 
   return (
-    <li>
+    <li
+      className={rowClass}
+      draggable={!editing}
+      onDragStart={(event) => {
+        if (editing || (event.target as HTMLElement).closest(".tab-close")) {
+          event.preventDefault();
+          return;
+        }
+        ignoreClick.current = true;
+        onDragStart(index, event);
+      }}
+      onDragOver={(event) => onDragOver(index, event)}
+      onDrop={(event) => onDrop(index, event)}
+      onDragEnd={() => {
+        onDragEnd();
+        window.setTimeout(() => {
+          ignoreClick.current = false;
+        }, 0);
+      }}
+      onDragLeave={(event) => onDragLeave(index, event)}
+    >
       {editing ? (
-        <div className={tab.active ? "tab-item active" : "tab-item"}>
+        <div className={itemClass}>
           {colorDot}
           {tab.favicon ? (
             <img className="tab-favicon" src={tab.favicon} alt="" />
@@ -188,8 +254,13 @@ function TabListItem({
       ) : (
         <button
           type="button"
-          className={tab.active ? "tab-item active" : "tab-item"}
-          onClick={() => void window.brawser.tabs.select(tab.id)}
+          className={itemClass}
+          onClick={() => {
+            if (ignoreClick.current) {
+              return;
+            }
+            void window.brawser.tabs.select(tab.id);
+          }}
           onDoubleClick={(event) => {
             event.preventDefault();
             startRename();
@@ -242,6 +313,9 @@ export function SidePanel() {
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [startUrl, setStartUrl] = useState("");
   const [region, setRegion] = useState(DEFAULT_ACCOUNT_REGION);
+  const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
+  const [dropAt, setDropAt] = useState<{ index: number; place: DropPlace } | null>(null);
+  const dragFromIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!window.brawser?.tabs) {
@@ -306,6 +380,53 @@ export function SidePanel() {
       return;
     }
     await window.brawser.directory.configureSso({ startUrl: trimmed, region });
+  }
+
+  function onTabDragStart(index: number, event: ReactDragEvent<HTMLLIElement>): void {
+    const tab = tabs[index];
+    if (!tab) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", tab.id);
+    dragFromIndexRef.current = index;
+    setDragFromIndex(index);
+  }
+
+  function onTabDragOver(index: number, event: ReactDragEvent<HTMLLIElement>): void {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const place = dropPlaceFromPointer(event);
+    setDropAt((prev) => (prev?.index === index && prev.place === place ? prev : { index, place }));
+  }
+
+  function onTabDrop(index: number, event: ReactDragEvent<HTMLLIElement>): void {
+    event.preventDefault();
+    const from = dragFromIndexRef.current;
+    const id = event.dataTransfer.getData("text/plain");
+    dragFromIndexRef.current = null;
+    setDragFromIndex(null);
+    setDropAt(null);
+    if (from === null || !id) {
+      return;
+    }
+    const toIndex = dropToIndex(from, index, dropPlaceFromPointer(event));
+    void window.brawser.tabs.reorder(id, toIndex);
+  }
+
+  function onTabDragEnd(): void {
+    dragFromIndexRef.current = null;
+    setDragFromIndex(null);
+    setDropAt(null);
+  }
+
+  function onTabDragLeave(index: number, event: ReactDragEvent<HTMLLIElement>): void {
+    const related = event.relatedTarget;
+    if (related instanceof Node && event.currentTarget.contains(related)) {
+      return;
+    }
+    setDropAt((prev) => (prev?.index === index ? null : prev));
   }
 
   function onResizePointerDown(event: ReactPointerEvent<HTMLDivElement>): void {
@@ -520,7 +641,7 @@ export function SidePanel() {
           {tabs.length === 0 ? (
             <li className="placeholder">タブはまだありません。</li>
           ) : (
-            tabs.map((tab) => {
+            tabs.map((tab, index) => {
               const account = directory.accounts.find(
                 (item) => item.accountRoleKey === tab.accountRoleKey,
               );
@@ -529,8 +650,16 @@ export function SidePanel() {
                 <TabListItem
                   key={tab.id}
                   tab={tab}
+                  index={index}
                   prodWarning={prodWarning}
                   accountColor={account?.color}
+                  dragging={dragFromIndex === index}
+                  dropPlace={dropAt?.index === index ? dropAt.place : null}
+                  onDragStart={onTabDragStart}
+                  onDragOver={onTabDragOver}
+                  onDrop={onTabDrop}
+                  onDragEnd={onTabDragEnd}
+                  onDragLeave={onTabDragLeave}
                 />
               );
             })

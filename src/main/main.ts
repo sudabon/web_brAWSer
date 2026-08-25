@@ -348,6 +348,7 @@ function registerIpc(current: Shell): void {
     IPC.tabsSelect,
     IPC.tabsClose,
     IPC.tabsRename,
+    IPC.tabsReorder,
     IPC.panelGet,
     IPC.panelSetCollapsed,
     IPC.panelSetWidth,
@@ -397,6 +398,12 @@ function registerIpc(current: Shell): void {
       return;
     }
     current.tabManager.renameTab(id, title);
+  });
+  ipcMain.handle(IPC.tabsReorder, (_event, id: string, toIndex: number) => {
+    if (typeof id !== "string" || !Number.isInteger(toIndex)) {
+      return;
+    }
+    current.tabManager.reorderTab(id, toIndex);
   });
   ipcMain.handle(IPC.panelGet, () => ({ ...current.panel }));
   ipcMain.handle(IPC.panelSetCollapsed, (_event, collapsed: boolean) => {

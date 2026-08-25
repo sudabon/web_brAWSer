@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld("brawser", {
     close: (id: string): Promise<void> => ipcRenderer.invoke(IPC.tabsClose, id),
     rename: (id: string, title: string): Promise<void> =>
       ipcRenderer.invoke(IPC.tabsRename, id, title),
+    reorder: (id: string, toIndex: number): Promise<void> =>
+      ipcRenderer.invoke(IPC.tabsReorder, id, toIndex),
     onChanged: (callback: (tabs: TabSnapshot[]) => void): (() => void) => {
       const listener = (_event: unknown, tabs: TabSnapshot[]): void => {
         callback(tabs);

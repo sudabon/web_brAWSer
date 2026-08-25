@@ -9,6 +9,7 @@ declare global {
         select: (id: string) => Promise<void>;
         close: (id: string) => Promise<void>;
         rename: (id: string, title: string) => Promise<void>;
+        reorder: (id: string, toIndex: number) => Promise<void>;
         onChanged: (
           callback: (tabs: import("../shared/types").TabSnapshot[]) => void,
         ) => () => void;
