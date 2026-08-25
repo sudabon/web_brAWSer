@@ -128,6 +128,7 @@ export type TotpCodeView = {
 
 export type TotpSnapshot = {
   locked: boolean;
+  unreadable: boolean;
   encryptionAvailable: boolean;
   touchIdAvailable: boolean;
   seedCount: number;
@@ -193,6 +194,7 @@ export const IPC = {
   totpImportImage: "totp:import-image",
   totpCaptureQr: "totp:capture-qr",
   totpCopy: "totp:copy",
+  totpReset: "totp:reset",
   totpChanged: "totp:changed",
   totpTogglePanel: "totp:toggle-panel",
   totpCurrentCode: "totp:current-code",

@@ -12,6 +12,7 @@ spike/*.local.*
 .vscode/
 .specstory/
 .senera/
+.uv-cache/
 
 # CodingAgent
 .claude/

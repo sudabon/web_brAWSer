@@ -4,6 +4,7 @@ import { ChevronIcon } from "./icons";
 
 const emptyTotp: TotpSnapshot = {
   locked: true,
+  unreadable: false,
   encryptionAvailable: true,
   touchIdAvailable: true,
   seedCount: 0,
@@ -71,6 +72,9 @@ export function TotpPanel() {
   async function onDrop(event: DragEvent<HTMLDivElement>): Promise<void> {
     event.preventDefault();
     setDragging(false);
+    if (totp.unreadable) {
+      return;
+    }
     const file = event.dataTransfer.files[0];
     if (!file) {
       return;
@@ -150,7 +154,26 @@ export function TotpPanel() {
         <p className="totp-error">{error ?? totp.errorMessage}</p>
       ) : null}
 
-      {totp.locked ? (
+      {totp.unreadable ? (
+        <button
+          type="button"
+          className="totp-reset"
+          onClick={() =>
+            void run(async () => {
+              const done = await window.brawser.totp.reset();
+              if (done) {
+                setTotp(await window.brawser.totp.get());
+              }
+            })
+          }
+        >
+          リセットして再登録
+        </button>
+      ) : null}
+
+      {totp.unreadable ? (
+        <p className="placeholder">先にリセットしてからシードを再登録してください。</p>
+      ) : totp.locked ? (
         <p className="placeholder">解錠するとコードが表示されます。</p>
       ) : totp.codes.length === 0 ? (
         <p className="placeholder">シードはまだありません。下の方法で登録してください。</p>
@@ -174,7 +197,7 @@ export function TotpPanel() {
         </ul>
       )}
 
-      <div className="totp-import">
+      <fieldset className="totp-import" disabled={totp.unreadable}>
         <button
           type="button"
           className="text-button"
@@ -185,9 +208,12 @@ export function TotpPanel() {
 
         <div
           className={dragging ? "totp-drop dragging" : "totp-drop"}
+          aria-disabled={totp.unreadable}
           onDragOver={(event) => {
             event.preventDefault();
-            setDragging(true);
+            if (!totp.unreadable) {
+              setDragging(true);
+            }
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={(event) => void onDrop(event)}
@@ -277,7 +303,7 @@ export function TotpPanel() {
           />
           <button type="submit">バックアップを取り込み</button>
         </form>
-      </div>
+      </fieldset>
     </section>
   );
 }

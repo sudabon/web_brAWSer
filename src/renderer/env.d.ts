@@ -48,6 +48,7 @@ declare global {
         importImage: (bytes: Uint8Array) => Promise<void>;
         captureQr: () => Promise<void>;
         copy: (id: string) => Promise<string>;
+        reset: () => Promise<boolean>;
         onChanged: (
           callback: (snapshot: import("../shared/types").TotpSnapshot) => void,
         ) => () => void;

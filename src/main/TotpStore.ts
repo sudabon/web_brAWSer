@@ -24,12 +24,14 @@ export type TotpStoreOptions = {
   id?: () => string;
   readFile: (path: string) => Promise<Buffer | null>;
   writeFile: (path: string, data: Buffer) => Promise<void>;
+  renameFile: (from: string, to: string) => Promise<void>;
   onChange?: () => void;
 };
 
 export class TotpStore {
   #seeds: TotpSeed[] = [];
   #locked = true;
+  #unreadable = false;
   #error: string | undefined;
   #seedCount = 0;
 
@@ -59,6 +61,7 @@ export class TotpStore {
       this.#seeds = [];
       this.#seedCount = 0;
       this.#locked = false;
+      this.#unreadable = false;
       this.#error = "暗号化が利用できないため、シードは保存・復号できません。";
       this.options.onChange?.();
       return true;
@@ -68,6 +71,7 @@ export class TotpStore {
       this.#seeds = [];
       this.#seedCount = 0;
       this.#locked = false;
+      this.#unreadable = false;
       this.#error = undefined;
       this.options.onChange?.();
       return true;
@@ -78,9 +82,12 @@ export class TotpStore {
       this.#seeds = Array.isArray(parsed) ? parsed : [];
       this.#seedCount = this.#seeds.length;
       this.#locked = false;
+      this.#unreadable = false;
       this.#error = undefined;
-    } catch (error) {
-      this.#error = error instanceof Error ? error.message : String(error);
+    } catch {
+      this.#unreadable = true;
+      this.#error =
+        "保存済みシードを復号できません。暗号鍵が変わった可能性があります。リセットして再登録してください。";
       this.options.onChange?.();
       return false;
     }
@@ -88,10 +95,28 @@ export class TotpStore {
     return true;
   }
 
+  async reset(): Promise<void> {
+    if (!this.#unreadable) {
+      return;
+    }
+    const from = this.options.totpEncPath;
+    const existing = await this.options.readFile(from);
+    if (existing) {
+      await this.options.renameFile(from, `${from}.bak.${this.now()}`);
+    }
+    this.#seeds = [];
+    this.#seedCount = 0;
+    this.#locked = false;
+    this.#unreadable = false;
+    this.#error = undefined;
+    this.options.onChange?.();
+  }
+
   view(): TotpSnapshot {
     const now = this.now();
     return {
       locked: this.#locked,
+      unreadable: this.#unreadable,
       encryptionAvailable: this.options.safeStorage.isEncryptionAvailable(),
       touchIdAvailable: this.options.unlockGate.canPromptBiometric(),
       seedCount: this.#seedCount,

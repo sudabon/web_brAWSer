@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld("brawser", {
       ipcRenderer.invoke(IPC.totpImportImage, bytes),
     captureQr: (): Promise<void> => ipcRenderer.invoke(IPC.totpCaptureQr),
     copy: (id: string): Promise<string> => ipcRenderer.invoke(IPC.totpCopy, id),
+    reset: (): Promise<boolean> => ipcRenderer.invoke(IPC.totpReset),
     onChanged: (callback: (snapshot: TotpSnapshot) => void): (() => void) => {
       const listener = (_event: unknown, snapshot: TotpSnapshot): void => {
         callback(snapshot);

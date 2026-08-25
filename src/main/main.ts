@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -367,6 +367,7 @@ function registerIpc(current: Shell): void {
     IPC.totpImportImage,
     IPC.totpCaptureQr,
     IPC.totpCopy,
+    IPC.totpReset,
     IPC.totpCurrentCode,
     IPC.commandJump,
     IPC.findQuery,
@@ -461,6 +462,22 @@ function registerIpc(current: Shell): void {
     await current.totp.importUri(uri);
   });
   ipcMain.handle(IPC.totpCopy, (_event, id: string) => current.totp.copy(id));
+  ipcMain.handle(IPC.totpReset, async () => {
+    const result = await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["キャンセル", "退避して空にする"],
+      defaultId: 0,
+      cancelId: 0,
+      message: "復号できない TOTP シードを退避して空にしますか？",
+      detail:
+        "既存の totp.enc は削除せず、タイムスタンプ付きの退避ファイルへ移します。シードは再登録が必要です。",
+    });
+    if (result.response !== 1) {
+      return false;
+    }
+    await current.totp.reset();
+    return true;
+  });
   ipcMain.handle(IPC.totpCurrentCode, (event) => {
     if (event.sender.session !== session.fromPartition(SSO_PORTAL_PARTITION)) {
       throw new Error("forbidden");
@@ -758,6 +775,7 @@ async function setupShell(window: BaseWindow): Promise<void> {
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, data);
     },
+    renameFile: rename,
     onChange: () => broadcast(current),
   });
 
