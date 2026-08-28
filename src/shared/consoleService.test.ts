@@ -39,6 +39,19 @@ describe("consoleServiceLabel", () => {
     ).toBe("CloudWatch");
   });
 
+  it("names Cognito for both user pools and identity pools", () => {
+    expect(
+      consoleServiceLabel(
+        "https://ap-northeast-1.console.aws.amazon.com/cognito/v2/idp/user-pools?region=ap-northeast-1",
+      ),
+    ).toBe("Cognito");
+    expect(
+      consoleServiceLabel(
+        "https://ap-northeast-1.console.aws.amazon.com/cognito/v2/identity/identity-pools?region=ap-northeast-1",
+      ),
+    ).toBe("Cognito");
+  });
+
   it("labels the console home page", () => {
     expect(consoleServiceLabel("https://ap-northeast-1.console.aws.amazon.com/console/home")).toBe(
       "ホーム",

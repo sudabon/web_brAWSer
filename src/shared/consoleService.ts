@@ -18,6 +18,7 @@ const EXTRA_SEGMENT_LABELS: Record<string, string> = {
   cloud9: "Cloud9",
   cloudshell: "CloudShell",
   codeartifact: "CodeArtifact",
+  cognito: "Cognito",
   connect: "Connect",
   controltower: "Control Tower",
   datasync: "DataSync",
